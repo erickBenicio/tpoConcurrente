@@ -21,7 +21,7 @@ public abstract class Atraccion{
 
     public abstract void entrar(Visitante vis);
 
-    public abstract void iniciarJuego():
+    public abstract void iniciarJuego();
     
     public void cerrar(){
         this.estado= false;
