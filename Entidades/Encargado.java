@@ -1,4 +1,4 @@
-package TPO-Concurrente.Entidades;
+package tpoConcurrente.Entidades;
 
 public class Encargado {
     

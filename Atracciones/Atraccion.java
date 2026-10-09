@@ -1,12 +1,12 @@
-package TPO-Concurrente.Atracciones;
-import TPO-Concurrente.Entidades.Visitante;
+package tpoConcurrente.atracciones;
+import tpoConcurrente.Entidades.Visitante;
 
-public abstract class Atraccion{
+public abstract class atraccion{
 
     protected String nombre;
     protected boolean estado; //True: abierto, False: cerrado
 
-    public Atraccion(String nombre){
+    public atraccion(String nombre){
         this.nombre= nombre;
         this.estado= true; //Abierta
     }
