@@ -28,7 +28,7 @@ public class comedor {
         this.capComedor= new Semaphore(cantMesas* CAP_MESA);
     }
 
-    public void entrarComedor(tpoConcurrente.Entidades.Visitante vis)throws BrokenBarrierException{
+    public void entrarComedor(tpoConcurrente.entidades.Visitante vis)throws BrokenBarrierException{
         if(!capComedor.tryAcquire()){
             System.out.println("Comedor lleno, no pudo ingresar");
             return;

@@ -1,5 +1,5 @@
 package tpoConcurrente.atracciones;
-import tpoConcurrente.Entidades.Visitante;
+import tpoConcurrente.entidades.Visitante;
 
 public abstract class atraccion{
 

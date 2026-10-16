@@ -1,8 +1,9 @@
 package tpoConcurrente.atracciones;
-import tpoConcurrente.Entidades.Visitante;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+
+import tpoConcurrente.entidades.Visitante;
 
 
 
