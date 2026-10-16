@@ -1,4 +1,4 @@
-package tpoConcurrente.Entidades;
+package tpoConcurrente.entidades;
 
 public class Visitante {
     private final String nombre;

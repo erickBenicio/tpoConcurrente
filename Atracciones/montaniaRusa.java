@@ -28,9 +28,51 @@ public class montaniaRusa extends atraccion {
                 System.out.println(vis.getNombre()+ "esta la fila llena de: "+ nombre);
                 return;
             }
-        } catch (Exception e) {
-            // TODO: handle exception
+            visEspera++;
+            System.out.println(vis.getNombre()+ "Entro a " +nombre+ " toma el asiento "+ visEspera + " de /5");
+            if(visEspera==5){
+                System.out.println("Montania rusa llena, iniciando viaje");
+                esperaLleno.signal();
+            }
+            while(enViaje || visEspera < 5){
+                esperaVacio.await();
+            }
+
+            System.out.println(vis.getNombre()+ "Termino el viaje en "+ nombre);
+            visEspera--;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            
+        }finally{
+            lock.unlock();
         }
 
+    }
+
+    public void iniciarJuego(){
+        lock.lock();
+        try {
+            while(visEspera < 5){
+                System.out.println("Esperando mas visitantes para iniciar");
+                esperaLleno.await();    
+            }
+            enViaje=true;
+            System.out.println("Iniciando viaje en "+nombre+ "con: "+visEspera+"pasajeros");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }finally{
+            lock.unlock();
+        }
+
+
+        simularJuego(5000);
+        lock.lock();
+        try{
+            enViaje=false;
+            System.out.println("El viaje "+nombre+ " ha terminado");
+            esperaVacio.signalAll();
+        }finally{
+            lock.unlock();
+        }
     }
 }
