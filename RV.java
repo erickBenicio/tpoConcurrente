@@ -65,8 +65,11 @@ public class RV {
                 cantVisores--;
                 cantManoplas-=2;
                 Ticket tick= colaEsperaVis.poll();
-                Visitante vis= tick.vis
+                Visitante vis= tick.vis();
+                System.out.println("El encargado: "+encargado.getNombre()+" le proporciono el equipo de RV a "+vis.getNombre());
+                tick.turno().release(); //Se avisa al visitante que quedo un equipo disponible para su uso.
             }
+            cond.release();
         }
     }
     
