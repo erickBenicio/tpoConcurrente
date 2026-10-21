@@ -1,7 +1,11 @@
 package tpoConcurrente;
 import tpoConcurrente.entidades.Encargado;
 import tpoConcurrente.entidades.Visitante;
-
+/*El parque ofrece un espectáculo que se lleva a cabo cada cierto tiempo.
+Cuando comienza el espectáculo, los asistentes deben entrar en grupos,
+asegurando que cada grupo esté completo antes de ingresar. El teatro tiene
+capacidad para 20 personas, pero los visitantes ingresan en grupos de 5.
+ */
 
 public class teatro {
     
