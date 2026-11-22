@@ -1,78 +1,120 @@
 package tpoConcurrente.atracciones;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-
 import tpoConcurrente.entidades.Visitante;
 
 
 
 public class montaniaRusa extends atraccion {
     
-    private final Lock lock= new ReentrantLock();
-    private final Condition esperaVacio = lock.newCondition();
-    private final Condition esperaLleno = lock.newCondition();
+    private static final int CAP_ASIENTOS = 5;
+    private static final int CAP_ESPERA = 8;          // espacio de espera (ajustable)
+    private static final long DURACION_VIAJE_MS = 1500;
 
-    private int visEspera= 0;
-    private boolean enViaje= false;
+    private final Lock lock = new ReentrantLock(true);
+    private final Condition puedeSubir = lock.newCondition();
+    private final Condition asientosLlenos = lock.newCondition();
+    private final Condition viajeTerminado = lock.newCondition();
 
-    public montaniaRusa(){
+    private int enFila = 0;
+    private int asientosOcupados = 0;
+    private boolean enViaje = false;
+    private long viajesCompletados = 0;
+
+    public montaniaRusa() {
         super("montaniaRusa");
     }
 
-
-    public void entrar(Visitante vis){
-
+    @Override
+    public void entrar(Visitante vis) throws InterruptedException {
+        boolean enEspera = false;
+        boolean abordo = false;
         lock.lock();
         try {
-            if(!enViaje || visEspera >5){
-                System.out.println(vis.getNombre()+ "esta la fila llena de: "+ nombre);
+            if (!estado) return;
+            if (enFila >= CAP_ESPERA) {
+                System.out.println(vis.getNombre() + " encontro la fila de " + nombre + " llena y se va");
                 return;
             }
-            visEspera++;
-            System.out.println(vis.getNombre()+ "Entro a " +nombre+ " toma el asiento "+ visEspera + " de /5");
-            if(visEspera==5){
-                System.out.println("Montania rusa llena, iniciando viaje");
-                esperaLleno.signal();
+            enFila++;
+            enEspera = true;
+            while (estado && (enViaje || asientosOcupados == CAP_ASIENTOS)) {
+                puedeSubir.await();
             }
-            while(enViaje || visEspera < 5){
-                esperaVacio.await();
-            }
+            enFila--;
+            enEspera = false;
+            if (!estado) return;
 
-            System.out.println(vis.getNombre()+ "Termino el viaje en "+ nombre);
-            visEspera--;
-        } catch (InterruptedException e) {
+            asientosOcupados++;
+            abordo = true;
+            long miViaje = viajesCompletados; // el viaje que estoy armando
+            System.out.println(vis.getNombre() + " subio a " + nombre + " (asiento " + asientosOcupados + "/" + CAP_ASIENTOS + ")");
+            if (asientosOcupados == CAP_ASIENTOS) {
+                asientosLlenos.signal(); // avisa al operador
+            }
+            while (viajesCompletados <= miViaje) {
+                viajeTerminado.await();
+            }
+            abordo = false; // se bajo normalmente
+            System.out.println(vis.getNombre() + " termino el viaje en " + nombre);
+        }catch(InterruptedException e){
             Thread.currentThread().interrupt();
-            
-        }finally{
+        } finally {
+            if (enEspera) enFila--;
+            if (abordo && !enViaje) { // lo interrumpieron sentado y el viaje no habia arrancado
+                asientosOcupados--;
+                puedeSubir.signal();
+            }
             lock.unlock();
         }
-
     }
 
-    public void iniciarJuego(){
+    /** Un viaje completo. El operador lo invoca en bucle mientras la atraccion este abierta. */
+    @Override
+    public void iniciarJuego() throws InterruptedException {
         lock.lock();
         try {
-            while(visEspera < 5){
-                System.out.println("Esperando mas visitantes para iniciar");
-                esperaLleno.await();    
+            while (estado && asientosOcupados < CAP_ASIENTOS) {
+                asientosLlenos.await();
             }
-            enViaje=true;
-            System.out.println("Iniciando viaje en "+nombre+ "con: "+visEspera+"pasajeros");
-        } catch (InterruptedException e) {
+            if (!estado) { // cierre: se cancela el viaje en armado y se libera a los sentados
+                asientosOcupados = 0;
+                viajesCompletados++;
+                viajeTerminado.signalAll();
+                return;
+            }
+            enViaje = true;
+            System.out.println("Iniciando viaje en " + nombre + " con " + asientosOcupados + " pasajeros");
+        }catch(InterruptedException e){
             Thread.currentThread().interrupt();
-        }finally{
+        } finally {
             lock.unlock();
         }
 
+        simularJuego(DURACION_VIAJE_MS); // fuera del lock
 
-        simularJuego(5000);
         lock.lock();
-        try{
-            enViaje=false;
-            System.out.println("El viaje "+nombre+ " ha terminado");
-            esperaVacio.signalAll();
-        }finally{
+        try {
+            enViaje = false;
+            asientosOcupados = 0;
+            viajesCompletados++;
+            System.out.println("El viaje en " + nombre + " ha terminado");
+            viajeTerminado.signalAll(); // bajan los pasajeros
+            puedeSubir.signalAll();     // pasa el siguiente grupo
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public void cerrar() {
+        super.cerrar();
+        lock.lock();
+        try {
+            puedeSubir.signalAll();
+            asientosLlenos.signalAll();
+        } finally {
             lock.unlock();
         }
     }

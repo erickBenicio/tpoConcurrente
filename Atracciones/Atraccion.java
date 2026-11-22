@@ -19,13 +19,13 @@ public abstract class atraccion{
         return estado;
     }
 
-    public abstract void entrar(Visitante vis);
+    public abstract void entrar(Visitante vis) throws InterruptedException;
 
-    public abstract void iniciarJuego();
+    public abstract void iniciarJuego() throws InterruptedException;
     
     public void cerrar(){
         this.estado= false;
-        System.err.println("La atraccion: "+ nombre+ "esta cerrada");
+        System.out.println("La atraccion: "+ nombre+ "esta cerrada");
     }
 
     public void simularJuego(long duracion){

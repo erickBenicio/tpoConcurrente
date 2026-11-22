@@ -16,61 +16,94 @@ ingresar a la actividad. Si falta algún componente, el visitante debe esperar
 hasta que esté disponible. */
 
 public class RV {
-    private final Semaphore cond; //Proteje el acceso a la Cola y el stock de equipos
-    private final Semaphore solEncargado; //Despierta al encargado cuando se lo necesite
-    private record Ticket(Visitante vis, Semaphore turno){}
-    private final Queue<Ticket> colaEsperaVis; //Cola de espera para los que estan esperando por los elementos
+    private static final long DURACION_USO_MS = 1000;
+
+    private final Semaphore mutex = new Semaphore(1, true);       // protege cola y stock
+    private final Semaphore hayNovedad = new Semaphore(0, true);  // despierta al encargado
+    private record Ticket(Visitante vis, Semaphore turno) {}
+    private final Queue<Ticket> colaEspera = new LinkedList<>();
     private int cantVisores, cantManoplas, cantBases;
 
-    public RV(int cantidadV, int cantidadM, int cantidadB){
-        this.cond= new Semaphore(1, true);
-        this.solEncargado= new Semaphore(0, true);
-        this.colaEsperaVis= new LinkedList<>();
-        this.cantVisores= cantidadV;
-        this.cantManoplas= cantidadM;
-        this.cantBases= cantidadB;
+    public RV(int cantidadV, int cantidadM, int cantidadB) {
+        this.cantVisores = cantidadV;
+        this.cantManoplas = cantidadM;
+        this.cantBases = cantidadB;
     }
 
-    public void usarRV(Visitante vis)throws InterruptedException{
-        //Simula la utilizacion de la atraccion
-        //Cada vis, gestiona su propio ticket con el sem
-        Semaphore turno= new Semaphore(0);
-        System.out.println(vis.getNombre()+" ingreso al area de RV");
-        cond.acquire();
-        colaEsperaVis.add(new Ticket(vis, turno));
-        System.out.println(vis.getNombre()+" esta esperando utilizar el equipo de VR");
-        solEncargado.release();//Notificas al encargado que hay visitante esperando
-        cond.release();
-        turno.acquire();
-        System.out.println(vis.getNombre()+" recibio el equipo de parte del encargado");
+    public void usarRV(Visitante vis) throws InterruptedException {
+        Ticket ticket = new Ticket(vis, new Semaphore(0));
+        mutex.acquire();
+        try {
+            colaEspera.add(ticket);
+        } finally {
+            mutex.release();
+        }
+        hayNovedad.release();
+        System.out.println(vis.getNombre() + " espera el equipo de RV");
 
-    }
-
-    public void devolverEquipo(Visitante vis) throws InterruptedException{
-        cond.acquire();
-        cantVisores++;
-        cantBases++;
-        cantManoplas+=2;
-        System.out.println(vis.getNombre()+" devolvio el equipo.");
-        System.out.println("Stock actual: Visores: "+cantVisores+", Bases: "+cantBases+", Manoplas: "+cantManoplas);
-        solEncargado.acquire();
-    }
-
-    public void darEquipo(Encargado encargado) throws InterruptedException{
-        while(true){
-            solEncargado.acquire(); //El encargado esta esperando que un visitante solicite los equipos
-            cond.acquire();
-            if(!colaEsperaVis.isEmpty() && cantVisores >0 && cantBases >0 && cantManoplas>1){
-                cantBases--;
-                cantVisores--;
-                cantManoplas-=2;
-                Ticket tick= colaEsperaVis.poll();
-                Visitante vis= tick.vis();
-                System.out.println("El encargado: "+encargado.getNombre()+" le proporciono el equipo de RV a "+vis.getNombre());
-                tick.turno().release(); //Se avisa al visitante que quedo un equipo disponible para su uso.
+        try {
+            ticket.turno().acquire(); // espera a que el encargado le entregue el equipo
+        } catch (InterruptedException e) {
+            mutex.acquireUninterruptibly();
+            try {
+                if (!colaEspera.remove(ticket)) { // ya le habian dado equipo: se repone
+                    reponerStock();
+                }
+            } finally {
+                mutex.release();
             }
-            cond.release();
+            hayNovedad.release();
+            throw e;
+        }
+
+        try {
+            System.out.println(vis.getNombre() + " esta usando RV");
+            Thread.sleep(DURACION_USO_MS);
+        } finally {
+            devolverEquipo(vis);
         }
     }
-    
+
+    public void devolverEquipo(Visitante vis) {
+        mutex.acquireUninterruptibly();
+        try {
+            reponerStock();
+            System.out.println(vis.getNombre() + " devolvio el equipo. Stock: visores=" + cantVisores
+                    + ", bases=" + cantBases + ", manoplas=" + cantManoplas);
+        } finally {
+            mutex.release();
+        }
+        hayNovedad.release(); // quizas ahora se pueda atender a alguien
+    }
+
+    /** Hilo del encargado: se queda trabajando hasta que lo interrumpan. */
+    public void darEquipo(Encargado encargado) throws InterruptedException {
+        while (true) {
+            hayNovedad.acquire();
+            mutex.acquire();
+            try {
+                while (!colaEspera.isEmpty() && hayEquipoCompleto()) {
+                    cantVisores--;
+                    cantBases--;
+                    cantManoplas -= 2;
+                    Ticket t = colaEspera.poll();
+                    System.out.println("El encargado " + encargado.getNombre() + " le dio el equipo a " + t.vis().getNombre());
+                    t.turno().release();
+                }
+            } finally {
+                mutex.release();
+            }
+        }
+    }
+
+    // Se invocan siempre con mutex tomado
+    private boolean hayEquipoCompleto() {
+        return cantVisores > 0 && cantBases > 0 && cantManoplas >= 2;
+    }
+
+    private void reponerStock() {
+        cantVisores++;
+        cantBases++;
+        cantManoplas += 2;
+    }
 }
