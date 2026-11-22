@@ -21,7 +21,7 @@ public abstract class atraccion{
 
     public abstract void entrar(Visitante vis) throws InterruptedException;
 
-    public abstract void iniciarJuego() throws InterruptedException;
+    public void iniciarJuego() throws InterruptedException{}
     
     public void cerrar(){
         this.estado= false;
@@ -35,5 +35,7 @@ public abstract class atraccion{
             Thread.currentThread().interrupt();
         }
     }
+
+    
 
 }

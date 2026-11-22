@@ -70,12 +70,12 @@ public class areaJuegos {
         while (true) {
             Ficha ficha = (Ficha) puesto.canal.exchange(new Cupon(++numero)); // espera visitante
             String premio = elegirPremio(ficha.puntos());
-            System.out.println(enc.getNombre() + " recibio la ficha de " + ficha.dueno()
+            System.out.println(enc.getNombre() + " recibio la ficha de " + ficha.encargado()
                     + " (" + ficha.puntos() + " puntos)");
             try {
                 puesto.canal.exchange(premio, ESPERA_CANJE_MS, TimeUnit.MILLISECONDS);
             } catch (TimeoutException e) {
-                System.out.println(enc.getNombre() + ": " + ficha.dueno() + " no vino a canjear el cupon");
+                System.out.println(enc.getNombre() + ": " + ficha.encargado() + " no vino a canjear el cupon");
             } finally {
                 libres.offer(puesto); // vuelve a estar libre
             }
