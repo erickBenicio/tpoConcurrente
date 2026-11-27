@@ -7,6 +7,7 @@ import tpoConcurrente.atracciones.montaniaRusa;
 import tpoConcurrente.entidades.Encargado;
 import tpoConcurrente.entidades.Visitante;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ThreadLocalRandom;
 
 
 public class ParqueMain {
@@ -104,7 +105,7 @@ public class ParqueMain {
             Thread t = new Thread(new Visitante("Visitante " + i, reloj, molinetes, actividades));
             t.start();
             visitantes.add(t); // despues de start(): un join sobre un hilo sin iniciar volveria de inmediato
-            Thread.sleep(1000);
+            Thread.sleep(ThreadLocalRandom.current().nextLong(150)); // promedio 75 ms
         }
 
         cierre.join(); // el cierre ya espero a los visitantes y detuvo a los empleados
