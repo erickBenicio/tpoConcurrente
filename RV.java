@@ -23,6 +23,7 @@ public class RV {
     private record Ticket(Visitante vis, Semaphore turno) {}
     private final Queue<Ticket> colaEspera = new LinkedList<>();
     private int cantVisores, cantManoplas, cantBases;
+    private boolean cerrado = false;
 
     public RV(int cantidadV, int cantidadM, int cantidadB) {
         this.cantVisores = cantidadV;
@@ -34,6 +35,7 @@ public class RV {
         Ticket ticket = new Ticket(vis, new Semaphore(0));
         mutex.acquire();
         try {
+            if (cerrado) return; // cerrada: se va a otra actividad
             colaEspera.add(ticket);
         } finally {
             mutex.release();
@@ -78,7 +80,8 @@ public class RV {
 
     /** Hilo del encargado: se queda trabajando hasta que lo interrumpan. */
     public void darEquipo(Encargado encargado) throws InterruptedException {
-        while (true) {
+        boolean seguir = true;
+        while (seguir) {
             hayNovedad.acquire();
             mutex.acquire();
             try {
@@ -90,10 +93,12 @@ public class RV {
                     System.out.println("El encargado " + encargado.getNombre() + " le dio el equipo a " + t.vis().getNombre());
                     t.turno().release();
                 }
+                if (cerrado && colaEspera.isEmpty()) seguir = false; // nadie mas va a llegar
             } finally {
                 mutex.release();
             }
         }
+        System.out.println("El encargado " + encargado.getNombre() + " termino su turno (RV cerrada)");
     }
 
     // Se invocan siempre con mutex tomado
@@ -106,4 +111,16 @@ public class RV {
         cantBases++;
         cantManoplas += 2;
     }
+
+    public void cerrar() throws InterruptedException {
+        mutex.acquire();
+        try {
+            cerrado = true;
+        } finally {
+            mutex.release();
+        }
+        hayNovedad.release(); // despierta al encargado para que evalue si ya puede irse
+        System.out.println("La atraccion RV esta cerrada");
+    }
+    
 }
